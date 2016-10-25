@@ -1,3 +1,18 @@
+2016.10.21
+- Added Summit Broadband to the available providers
+
+2016.10.20
+- Attempt to fix no audio in streams (legacy streams are used if available)
+- Added Playstation Vue to the providers list
+
+2016.10.19.2
+- Fixed repo bug
+
+2016.10.19
+- Fixed Comcast (xfinity) login
+- Updated user agents
+- Improved sorting of list items
+
 2016.10.17
 - Fixed appending cookie to stream issue
 - Fixed featured, replays, and highlight items

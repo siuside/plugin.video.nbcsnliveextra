@@ -23,6 +23,8 @@ from resources.providers.optimum import OPTIMUM
 from resources.providers.cox import COX
 from resources.providers.bright_house import BRIGHT_HOUSE
 from resources.providers.frontier import FRONTIER
+from resources.providers.playstation_vue import PLAYSTATION_VUE
+from resources.providers.summit_broadband import SUMMIT_BROADBAND
 
 
 def CATEGORIES():           
@@ -56,7 +58,6 @@ def GET_ALL_SPORTS():
 def SCRAPE_VIDEOS(url,scrape_type=None):
     xbmc.log(url)
     req = urllib2.Request(url)
-    #req.add_header('User-Agent', 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36')
     req.add_header('Connection', 'keep-alive')
     req.add_header('Accept', '*/*')
     req.add_header('User-Agent', UA_NBCSN)
@@ -67,9 +68,14 @@ def SCRAPE_VIDEOS(url,scrape_type=None):
     response = urllib2.urlopen(req)    
     json_source = json.load(response)                           
     response.close()                
-    
+
     if 'featured' in url:
         json_source = json_source['showCase']
+
+    if 'live-upcoming' not in url:
+        json_source = sorted(json_source, key=lambda k: k['start'], reverse = True)
+    else:
+        json_source = sorted(json_source, key=lambda k: k['start'], reverse = False)
 
     for item in json_source:        
       BUILD_VIDEO_LINK(item)
@@ -78,17 +84,34 @@ def SCRAPE_VIDEOS(url,scrape_type=None):
 
 def BUILD_VIDEO_LINK(item):
     url = ''    
+    #Use the ottStreamUrl (v3) until sound is fixed for newer (v4) streams in kodi
     try:      
-        url = item['iosStreamUrl']  
+        #url = item['iosStreamUrl']          
+        url = item['ottStreamUrl']  
+        if url == '' and item['iosStreamUrl'] != '':
+            url = item['iosStreamUrl']          
+        '''
         if CDN == 1 and item['backupUrl'] != '':
             url = item['backupUrl']
+        '''
     except:
         try:
-            if item['videoSources']:
+            if item['videoSources']:                
+                '''
                 if 'iosStreamUrl' in item['videoSources'][0]:
                     url =  item['videoSources'][0]['iosStreamUrl']
                     if CDN == 1 and item['videoSources'][0]['backupUrl'] != '':
                         url = item['backupUrl']
+                '''
+                if 'ottStreamUrl' in item['videoSources'][0]:
+                    url =  item['videoSources'][0]['ottStreamUrl']
+                    
+                    if url == '' and item['iosStreamUrl'] != '':
+                        url = item['iosStreamUrl']    
+                    '''
+                    if CDN == 1 and item['videoSources'][0]['backupUrl'] != '':
+                        url = item['backupUrl']
+                    '''
         except:
             pass
         pass
@@ -231,8 +254,13 @@ def SIGN_STREAM(stream_url, stream_name, stream_icon):
         provider = BRIGHT_HOUSE()
     elif MSO_ID == 'FRONTIER':
         provider = FRONTIER()
+    elif MSO_ID == 'sony_auth-gateway_net':
+        provider = PLAYSTATION_VUE()
+    elif MSO_ID == 'summit-broadband':
+        provider = SUMMIT_BROADBAND()
 
     #provider = SET_PROVIDER()
+    xbmc.log("PROVIDER ="+str(PROVIDER))
 
     if provider != None:
         #stream_url = AUTHORIZE_STREAM(provider)
@@ -245,9 +273,9 @@ def SIGN_STREAM(stream_url, stream_name, stream_icon):
             
             for cookie in cj:                
                 if cookie.name == 'BIGipServerAdobe_Pass_Prod':
-                    print cookie.name
-                    print cookie.expires
-                    print cookie.is_expired()
+                    xbmc.log(str(cookie.name))
+                    xbmc.log(str(cookie.expires))
+                    xbmc.log(str(cookie.is_expired()))
                     expired_cookies = cookie.is_expired()
         except:
             pass
@@ -260,10 +288,10 @@ def SIGN_STREAM(stream_url, stream_name, stream_icon):
             last_provider = provider_file.readline()
             provider_file.close()
 
-        print "Did cookies expire? " + str(expired_cookies)
-        print "Does the auth token file exist? " + str(os.path.isfile(auth_token_file))
-        print "Does the last provider match the current provider? " + str(last_provider == MSO_ID)
-        print "Who was the last provider? " +str(last_provider)
+        xbmc.log("Did cookies expire? " + str(expired_cookies))
+        xbmc.log("Does the auth token file exist? " + str(os.path.isfile(auth_token_file)))
+        xbmc.log("Does the last provider match the current provider? " + str(last_provider == MSO_ID))
+        xbmc.log("Who was the last provider? " +str(last_provider))
                 
         resource_id = GET_RESOURCE_ID()    
         signed_requestor_id = GET_SIGNED_REQUESTOR_ID() 
@@ -277,11 +305,12 @@ def SIGN_STREAM(stream_url, stream_name, stream_icon):
             var_3 = HTMLParser.HTMLParser().unescape(var_3)
             saml_response, relay_state = provider.LOGIN(var_1, var_2, var_3)
             #Error logging in. Abort! Abort!
-            print "SAML RESPONSE:"
-            print saml_response
-            print "RELAY STATE:"
-            print relay_state
+            xbmc.log("SAML RESPONSE:")
+            xbmc.log(saml_response)
+            xbmc.log("RELAY STATE:")
+            xbmc.log(relay_state)
 
+            
             if saml_response == '' and relay_state == '':
                 msg = "Please verify that your username and password are correct"
                 dialog = xbmcgui.Dialog() 
@@ -293,7 +322,7 @@ def SIGN_STREAM(stream_url, stream_name, stream_icon):
                 ok = dialog.ok('Captcha Found', msg)
                 return
 
-            adobe.POST_ASSERTION_CONSUMER_SERVICE(saml_response,relay_state)
+            adobe.POST_ASSERTION_CONSUMER_SERVICE(saml_response,relay_state)            
             adobe.POST_SESSION_DEVICE(signed_requestor_id)    
 
 
